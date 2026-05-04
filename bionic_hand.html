@@ -1,0 +1,1195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bionic Hand Control</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=Rajdhani:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+<style>
+  :root {
+    /* ── White 60% (backgrounds, surfaces) ── */
+    --bg-deep:     #ffffff;
+    --bg-dark:     #f4f4f0;
+    --bg-card:     #fefefe;
+
+    /* ── Orange 30% (primary accent, CTAs, highlights) ── */
+    --orange-900:  #7c2d00;
+    --orange-700:  #c2410c;
+    --orange-500:  #f97316;
+    --orange-400:  #fb923c;
+    --orange-300:  #fdba74;
+    --orange-200:  #fed7aa;
+    --orange-100:  #fff7ed;
+    --accent:      #f97316;
+
+    /* ── Blue 10% (secondary details) ── */
+    --blue-600:    #2563eb;
+    --blue-500:    #3b82f6;
+    --blue-400:    #60a5fa;
+    --blue-200:    #bfdbfe;
+
+    /* ── Typography ── */
+    --text-main:   #1c1917;
+    --text-muted:  #78716c;
+    --text-light:  #a8a29e;
+
+    /* ── Borders & Effects ── */
+    --border:      rgba(249,115,22,0.22);
+    --border-soft: rgba(0,0,0,0.08);
+    --glow:        0 4px 24px rgba(249,115,22,0.25);
+    --glow-lg:     0 8px 48px rgba(249,115,22,0.2);
+    --shadow:      0 2px 12px rgba(0,0,0,0.08);
+    --shadow-lg:   0 8px 32px rgba(0,0,0,0.12);
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Rajdhani', sans-serif;
+    background: var(--bg-deep);
+    color: var(--text-main);
+    min-height: 100vh;
+    overflow-x: hidden;
+    position: relative;
+  }
+
+  /* ── Subtle dot-grid overlay ── */
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background-image: radial-gradient(circle, rgba(249,115,22,0.12) 1px, transparent 1px);
+    background-size: 32px 32px;
+    pointer-events: none; z-index: 0;
+  }
+
+  /* ── Ambient glow orbs ── */
+  .orb {
+    position: fixed; border-radius: 50%;
+    filter: blur(120px); pointer-events: none; z-index: 0;
+    animation: orbFloat 14s ease-in-out infinite;
+  }
+  .orb-1 { width: 600px; height: 600px; background: rgba(249,115,22,0.12); top: -200px; right: -150px; }
+  .orb-2 { width: 400px; height: 400px; background: rgba(59,130,246,0.07); bottom: -100px; left: -100px; animation-delay: -7s; }
+  .orb-3 { width: 300px; height: 300px; background: rgba(251,146,60,0.08); top: 50%; left: 40%; animation-delay: -3.5s; }
+  @keyframes orbFloat { 0%,100%{transform:translateY(0) scale(1)} 50%{transform:translateY(-30px) scale(1.05)} }
+
+  /* ── Nav ── */
+  nav {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+    display: flex; align-items: center; gap: 8px;
+    padding: 14px 32px;
+    background: rgba(255,255,255,0.92);
+    backdrop-filter: blur(20px);
+    border-bottom: 1px solid var(--border-soft);
+    box-shadow: 0 1px 16px rgba(0,0,0,0.06);
+  }
+  .nav-logo {
+    font-family: 'Orbitron', monospace; font-weight: 900;
+    font-size: 1.1rem; letter-spacing: 0.15em;
+    background: linear-gradient(135deg, var(--orange-700), var(--orange-400));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    margin-right: auto;
+  }
+  .nav-btn {
+    font-family: 'Rajdhani', sans-serif; font-weight: 600;
+    font-size: 0.8rem; letter-spacing: 0.12em; text-transform: uppercase;
+    padding: 6px 16px; border-radius: 6px; cursor: pointer;
+    border: 1px solid transparent;
+    color: var(--text-muted); background: transparent;
+    transition: all 0.2s;
+  }
+  .nav-btn:hover {
+    color: var(--orange-700);
+    border-color: var(--border);
+    background: var(--orange-100);
+  }
+  .nav-btn.active {
+    color: #fff;
+    background: linear-gradient(135deg, var(--orange-700), var(--orange-500));
+    border-color: transparent;
+    box-shadow: var(--glow);
+  }
+
+  /* ── Pages ── */
+  .page { display: none; min-height: 100vh; padding-top: 72px; position: relative; z-index: 1; }
+  .page.active { display: block; animation: fadeIn 0.35s ease; }
+  @keyframes fadeIn { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:none} }
+
+  /* ══════════════════ HOME PAGE ══════════════════ */
+  #home {
+    display: none; flex-direction: column;
+    align-items: center; justify-content: center;
+    min-height: 100vh; padding: 72px 24px 40px;
+    text-align: center;
+  }
+  #home.active { display: flex; }
+
+  .hero-badge {
+    font-family: 'Orbitron', monospace; font-size: 0.65rem;
+    letter-spacing: 0.3em; text-transform: uppercase;
+    color: var(--orange-700); border: 1px solid var(--border);
+    background: var(--orange-100);
+    padding: 6px 18px; border-radius: 40px; margin-bottom: 28px;
+    animation: pulse 3s ease-in-out infinite;
+  }
+  @keyframes pulse { 0%,100%{box-shadow:0 0 0 rgba(249,115,22,0)} 50%{box-shadow:0 0 20px rgba(249,115,22,0.2)} }
+
+  .hero-title {
+    font-family: 'Orbitron', monospace; font-weight: 900;
+    font-size: clamp(2.4rem, 7vw, 5rem); line-height: 1.05;
+    letter-spacing: -0.02em; margin-bottom: 20px;
+  }
+  .hero-title .line1 { display: block; color: var(--text-main); }
+  .hero-title .line2 {
+    display: block;
+    background: linear-gradient(135deg, var(--orange-700) 0%, var(--orange-400) 60%, var(--blue-400) 100%);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  }
+
+  .hero-sub {
+    font-size: 1.1rem; font-weight: 400; color: var(--text-muted);
+    max-width: 520px; line-height: 1.7; margin-bottom: 64px;
+    letter-spacing: 0.02em;
+  }
+
+  .cards-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 20px; max-width: 760px; width: 100%;
+  }
+  @media(max-width:600px) { .cards-grid { grid-template-columns: 1fr; } }
+
+  .home-card {
+    position: relative; overflow: hidden;
+    padding: 32px 28px; border-radius: 18px; cursor: pointer;
+    background: var(--bg-card);
+    border: 1px solid var(--border-soft);
+    box-shadow: var(--shadow);
+    transition: transform 0.25s, border-color 0.25s, box-shadow 0.25s;
+    text-align: left;
+  }
+  .home-card::before {
+    content: ''; position: absolute; inset: 0;
+    background: linear-gradient(135deg, rgba(249,115,22,0.06) 0%, transparent 60%);
+    opacity: 0; transition: opacity 0.25s;
+  }
+  .home-card:hover { transform: translateY(-5px); border-color: var(--border); box-shadow: var(--glow); }
+  .home-card:hover::before { opacity: 1; }
+
+  .card-num {
+    font-family: 'Orbitron', monospace; font-size: 0.62rem;
+    letter-spacing: 0.25em; color: var(--orange-400); margin-bottom: 14px;
+  }
+  .card-icon {
+    font-size: 2.4rem; margin-bottom: 16px; display: block;
+    filter: drop-shadow(0 2px 8px rgba(249,115,22,0.3));
+  }
+  .card-title {
+    font-family: 'Orbitron', monospace; font-size: 0.88rem;
+    font-weight: 700; letter-spacing: 0.08em;
+    color: var(--text-main); margin-bottom: 10px;
+  }
+  .card-desc { font-size: 0.88rem; color: var(--text-muted); line-height: 1.6; }
+  .card-arrow {
+    position: absolute; bottom: 24px; right: 24px;
+    font-size: 1.1rem; color: var(--orange-300);
+    transition: transform 0.2s, color 0.2s;
+  }
+  .home-card:hover .card-arrow { transform: translate(4px, -4px); color: var(--orange-500); }
+
+  /* ══════════════════ ABOUT PAGE ══════════════════ */
+  .page-inner { max-width: 960px; margin: 0 auto; padding: 48px 24px; }
+
+  .page-header { margin-bottom: 48px; }
+  .page-tag {
+    font-family: 'Orbitron', monospace; font-size: 0.6rem;
+    letter-spacing: 0.3em; color: var(--orange-500);
+    text-transform: uppercase; margin-bottom: 12px; display: block;
+  }
+  .page-title {
+    font-family: 'Orbitron', monospace; font-weight: 900;
+    font-size: clamp(1.8rem, 5vw, 3rem); line-height: 1.1;
+    background: linear-gradient(135deg, var(--text-main) 40%, var(--orange-500));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  }
+
+  /* Specs grid */
+  .specs-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 16px; margin-bottom: 48px; }
+  @media(max-width:640px) { .specs-grid { grid-template-columns: 1fr 1fr; } }
+
+  .spec-card {
+    background: var(--bg-card); border: 1px solid var(--border-soft);
+    border-radius: 14px; padding: 24px 20px;
+    box-shadow: var(--shadow);
+    transition: border-color 0.2s, box-shadow 0.2s, transform 0.2s;
+  }
+  .spec-card:hover { border-color: var(--border); box-shadow: var(--glow); transform: translateY(-2px); }
+  .spec-icon { font-size: 1.8rem; margin-bottom: 12px; display: block; }
+  .spec-label { font-family: 'Orbitron', monospace; font-size: 0.6rem; letter-spacing: 0.2em; color: var(--orange-500); text-transform: uppercase; margin-bottom: 6px; }
+  .spec-value { font-size: 1rem; font-weight: 600; color: var(--text-main); }
+
+  .section-title {
+    font-family: 'Orbitron', monospace; font-size: 0.85rem;
+    font-weight: 700; letter-spacing: 0.12em; color: var(--orange-700);
+    text-transform: uppercase; margin-bottom: 20px;
+    padding-bottom: 12px; border-bottom: 2px solid var(--orange-200);
+  }
+
+  .about-text { color: var(--text-muted); line-height: 1.8; font-size: 1rem; margin-bottom: 36px; }
+  .about-text strong { color: var(--text-main); font-weight: 600; }
+
+  .feature-list { list-style: none; display: flex; flex-direction: column; gap: 12px; margin-bottom: 40px; }
+  .feature-list li {
+    display: flex; align-items: flex-start; gap: 12px;
+    font-size: 0.95rem; color: var(--text-muted); line-height: 1.6;
+  }
+  .feature-list li::before {
+    content: '▸'; color: var(--orange-500); flex-shrink: 0; margin-top: 2px;
+  }
+
+  /* Pinout table */
+  .table-wrap { overflow-x: auto; margin-bottom: 40px; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+  th {
+    font-family: 'Orbitron', monospace; font-size: 0.62rem; letter-spacing: 0.2em;
+    text-transform: uppercase; color: var(--orange-700);
+    padding: 12px 16px; border-bottom: 2px solid var(--orange-200);
+    text-align: left; background: var(--orange-100);
+  }
+  td { padding: 12px 16px; border-bottom: 1px solid rgba(0,0,0,0.06); color: var(--text-muted); }
+  tr:hover td { background: var(--orange-100); color: var(--text-main); }
+
+  /* ══════════════════ HAND TRACKING PAGE ══════════════════ */
+  .tracking-layout {
+    display: grid; grid-template-columns: 1fr 280px;
+    gap: 24px; align-items: start;
+    max-width: 1100px; margin: 0 auto; padding: 40px 24px;
+  }
+  @media(max-width:760px) { .tracking-layout { grid-template-columns: 1fr; } }
+
+  .cam-panel {
+    background: var(--bg-card); border: 1px solid var(--border-soft);
+    border-radius: 18px; overflow: hidden; position: relative;
+    box-shadow: var(--shadow-lg);
+  }
+  .cam-header {
+    display: flex; align-items: center; gap: 10px;
+    padding: 14px 20px; border-bottom: 1px solid var(--border-soft);
+    background: var(--orange-100);
+  }
+  .cam-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--orange-500); box-shadow: 0 0 8px rgba(249,115,22,0.5); animation: blink 2s ease-in-out infinite; }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+  .cam-label { font-family: 'Orbitron', monospace; font-size: 0.65rem; letter-spacing: 0.2em; color: var(--text-muted); }
+
+  #videoCanvas { width: 100%; display: block; background: #111; min-height: 320px; }
+  video#inputVideo { display: none; }
+
+  .cam-status {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    padding: 10px 16px; background: rgba(255,255,255,0.88);
+    backdrop-filter: blur(8px);
+    display: flex; justify-content: space-between; align-items: center;
+    font-family: 'Orbitron', monospace; font-size: 0.6rem; letter-spacing: 0.1em;
+    border-top: 1px solid var(--border-soft);
+  }
+  .status-hand { color: var(--orange-700); }
+  .status-fps  { color: var(--blue-500); }
+
+  /* Side panel */
+  .side-panel { display: flex; flex-direction: column; gap: 16px; }
+
+  .panel-card {
+    background: var(--bg-card); border: 1px solid var(--border-soft);
+    border-radius: 14px; padding: 20px; box-shadow: var(--shadow);
+  }
+  .panel-card-title {
+    font-family: 'Orbitron', monospace; font-size: 0.6rem;
+    letter-spacing: 0.2em; color: var(--orange-500);
+    text-transform: uppercase; margin-bottom: 16px;
+  }
+
+  /* Finger bars */
+  .finger-bars { display: flex; flex-direction: column; gap: 10px; }
+  .finger-row { display: flex; align-items: center; gap: 10px; }
+  .finger-name { font-size: 0.8rem; font-weight: 600; color: var(--text-muted); width: 52px; flex-shrink: 0; }
+  .bar-track {
+    flex: 1; height: 7px; background: var(--orange-100);
+    border-radius: 4px; overflow: hidden;
+  }
+  .bar-fill {
+    height: 100%; width: 0%; border-radius: 4px;
+    background: linear-gradient(90deg, var(--orange-400), var(--orange-600, #ea580c));
+    transition: width 0.1s;
+    box-shadow: 0 0 6px rgba(249,115,22,0.4);
+  }
+  .finger-angle {
+    font-family: 'Orbitron', monospace; font-size: 0.72rem;
+    color: var(--text-main); width: 36px; text-align: right; flex-shrink: 0;
+  }
+
+  /* ESP config */
+  .input-row { display: flex; gap: 8px; margin-bottom: 12px; }
+  .esp-input {
+    flex: 1; background: var(--bg-dark); border: 1px solid var(--border-soft);
+    border-radius: 8px; padding: 8px 12px;
+    font-family: 'Rajdhani', sans-serif; font-size: 0.9rem;
+    color: var(--text-main); outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  .esp-input:focus { border-color: var(--orange-400); box-shadow: 0 0 0 3px rgba(249,115,22,0.12); }
+
+  .btn {
+    font-family: 'Orbitron', monospace; font-size: 0.65rem;
+    letter-spacing: 0.1em; text-transform: uppercase;
+    padding: 9px 18px; border-radius: 8px; cursor: pointer;
+    border: 1px solid var(--border);
+    background: var(--orange-100); color: var(--orange-700);
+    transition: all 0.2s; white-space: nowrap;
+  }
+  .btn:hover { background: var(--orange-200); box-shadow: var(--glow); }
+  .btn.primary {
+    background: linear-gradient(135deg, var(--orange-700), var(--orange-500));
+    border-color: transparent; color: #fff; width: 100%;
+    padding: 12px; font-size: 0.7rem;
+  }
+  .btn.primary:hover { box-shadow: var(--glow-lg); filter: brightness(1.06); }
+  .btn.danger { border-color: rgba(239,68,68,0.4); color: #dc2626; background: #fef2f2; }
+  .btn.danger:hover { background: #fee2e2; box-shadow: 0 0 16px rgba(239,68,68,0.2); }
+
+  .conn-indicator {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 0.85rem; color: var(--text-muted); margin-top: 8px;
+  }
+  .conn-dot { width: 8px; height: 8px; border-radius: 50%; background: #d4d4d4; flex-shrink: 0; }
+  .conn-dot.connected { background: #16a34a; box-shadow: 0 0 8px rgba(22,163,74,0.5); }
+  .conn-dot.error { background: #ef4444; box-shadow: 0 0 8px rgba(239,68,68,0.4); }
+
+  /* ══════════════════ SIGN LANGUAGE PAGE ══════════════════ */
+  .sign-layout { max-width: 800px; margin: 0 auto; padding: 40px 24px; }
+
+  .sign-esp-row { display: flex; gap: 10px; margin-bottom: 32px; align-items: center; }
+
+  .sign-input-area {
+    background: var(--bg-card); border: 1px solid var(--border-soft);
+    border-radius: 16px; padding: 28px; margin-bottom: 24px;
+    box-shadow: var(--shadow);
+  }
+  .sign-input-area label {
+    display: block; font-family: 'Orbitron', monospace; font-size: 0.6rem;
+    letter-spacing: 0.2em; color: var(--orange-500); margin-bottom: 10px;
+  }
+  .sign-textarea {
+    width: 100%; background: var(--bg-dark);
+    border: 1px solid var(--border-soft); border-radius: 10px;
+    padding: 14px; font-family: 'Rajdhani', sans-serif;
+    font-size: 1.1rem; color: var(--text-main); resize: vertical;
+    min-height: 100px; outline: none; transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  .sign-textarea:focus { border-color: var(--orange-400); box-shadow: 0 0 0 3px rgba(249,115,22,0.1); }
+  .sign-send-row { display: flex; gap: 10px; margin-top: 14px; }
+
+  .word-chips { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 28px; }
+  .word-chip {
+    font-family: 'Orbitron', monospace; font-size: 0.65rem;
+    letter-spacing: 0.1em; padding: 10px 20px; border-radius: 40px;
+    cursor: pointer; border: 1px solid var(--border-soft);
+    background: var(--bg-card); color: var(--text-muted);
+    box-shadow: var(--shadow);
+    transition: all 0.2s; text-transform: uppercase;
+  }
+  .word-chip:hover {
+    border-color: var(--orange-400); color: var(--orange-700);
+    background: var(--orange-100); box-shadow: var(--glow);
+    transform: translateY(-2px);
+  }
+
+  .log-box {
+    background: var(--bg-dark); border: 1px solid var(--border-soft);
+    border-radius: 12px; padding: 16px; min-height: 120px;
+    max-height: 200px; overflow-y: auto;
+    font-family: 'Rajdhani', monospace; font-size: 0.88rem;
+    line-height: 1.8;
+  }
+  .log-entry { color: var(--text-muted); }
+  .log-entry.sent { color: var(--orange-600, #ea580c); }
+  .log-entry.err  { color: #dc2626; }
+  .log-entry.ok   { color: #16a34a; }
+
+  .progress-queue {
+    background: var(--bg-card); border: 1px solid var(--border-soft);
+    border-radius: 14px; padding: 20px; margin-bottom: 24px; display: none;
+    box-shadow: var(--shadow);
+  }
+  .queue-label { font-family: 'Orbitron', monospace; font-size: 0.6rem; letter-spacing: 0.2em; color: var(--orange-500); margin-bottom: 12px; }
+  .queue-items { display: flex; flex-wrap: wrap; gap: 8px; }
+  .queue-item {
+    padding: 4px 14px; border-radius: 20px; font-size: 0.82rem;
+    border: 1px solid var(--border-soft); background: var(--bg-dark);
+    color: var(--text-muted); transition: all 0.3s;
+  }
+  .queue-item.active { border-color: var(--orange-500); color: var(--orange-700); background: var(--orange-100); box-shadow: 0 0 10px rgba(249,115,22,0.2); }
+  .queue-item.done   { border-color: rgba(22,163,74,0.4); color: #16a34a; background: #f0fdf4; }
+
+  /* ══════════════════ KEYBOARD PAGE ══════════════════ */
+  .kb-layout { max-width: 860px; margin: 0 auto; padding: 40px 24px; }
+  .kb-esp-row { display: flex; gap: 10px; margin-bottom: 32px; align-items: center; }
+
+  .motor-grid { display: grid; grid-template-columns: repeat(5,1fr); gap: 14px; margin-bottom: 32px; }
+  @media(max-width:600px) { .motor-grid { grid-template-columns: repeat(3,1fr); } }
+
+  .motor-card {
+    background: var(--bg-card); border: 1px solid var(--border-soft);
+    border-radius: 14px; padding: 18px 12px; text-align: center;
+    position: relative; transition: border-color 0.2s, box-shadow 0.2s, transform 0.15s;
+    box-shadow: var(--shadow);
+  }
+  .motor-card.active { border-color: var(--orange-500); box-shadow: var(--glow); transform: scale(0.97); }
+  .motor-name { font-family: 'Orbitron', monospace; font-size: 0.7rem; letter-spacing: 0.1em; color: var(--orange-600, #ea580c); margin-bottom: 14px; }
+  .motor-keys { display: flex; flex-direction: column; gap: 6px; }
+  .key-row { display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 0.82rem; }
+  .key-badge {
+    font-family: 'Orbitron', monospace; font-size: 0.68rem;
+    background: var(--orange-100); border: 1px solid var(--border);
+    border-radius: 5px; padding: 3px 8px; color: var(--orange-700);
+    transition: all 0.15s; min-width: 28px;
+  }
+  .key-badge.pressed { background: var(--orange-500); border-color: var(--orange-400); color: #fff; box-shadow: 0 0 10px rgba(249,115,22,0.5); }
+  .key-dir { color: var(--text-muted); font-size: 0.78rem; }
+
+  .kb-presets { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 28px; }
+  .preset-btn {
+    font-family: 'Orbitron', monospace; font-size: 0.65rem;
+    letter-spacing: 0.1em; padding: 11px 22px; border-radius: 8px;
+    cursor: pointer; border: 1px solid var(--border-soft);
+    background: var(--bg-card); color: var(--text-muted);
+    box-shadow: var(--shadow);
+    transition: all 0.2s; text-transform: uppercase;
+  }
+  .preset-btn:hover { border-color: var(--orange-400); color: var(--orange-700); background: var(--orange-100); box-shadow: var(--glow); transform: translateY(-2px); }
+
+  .kb-hint {
+    background: var(--blue-200); border: 1px solid var(--blue-400);
+    border-radius: 12px; padding: 18px 20px; margin-bottom: 24px;
+    font-size: 0.88rem; color: var(--blue-600); line-height: 1.8;
+  }
+  .kb-hint strong { color: var(--blue-600); font-weight: 700; }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: var(--bg-dark); }
+  ::-webkit-scrollbar-thumb { background: var(--orange-300); border-radius: 2px; }
+</style>
+</head>
+<body>
+
+<div class="orb orb-1"></div>
+<div class="orb orb-2"></div>
+<div class="orb orb-3"></div>
+
+<!-- ── Navigation ── -->
+<nav>
+  <span class="nav-logo">⬡ BIONIC</span>
+  <button class="nav-btn active" onclick="showPage('home')">Home</button>
+  <button class="nav-btn" onclick="showPage('about')">About</button>
+  <button class="nav-btn" onclick="showPage('tracking')">Hand Track</button>
+  <button class="nav-btn" onclick="showPage('sign')">Sign Lang</button>
+  <button class="nav-btn" onclick="showPage('keyboard')">Keyboard</button>
+</nav>
+
+<!-- ══════════════════════════════
+     HOME
+══════════════════════════════ -->
+<section id="home" class="page active">
+  <span class="hero-badge">ESP32 · PCA9685 · SG90 · MediaPipe</span>
+  <h1 class="hero-title">
+    <span class="line1">BIONIC</span>
+    <span class="line2">HAND CONTROL</span>
+  </h1>
+  <p class="hero-sub">
+    A 5-axis robotic hand powered by SG90 servos, driven by an ESP32 microcontroller
+    and PCA9685 PWM driver — controlled via gesture, sign language, or keyboard.
+  </p>
+
+  <div class="cards-grid">
+    <div class="home-card" onclick="showPage('about')">
+      <span class="card-num">01 / 04</span>
+      <span class="card-icon">🦾</span>
+      <div class="card-title">Project Overview</div>
+      <div class="card-desc">Hardware specs, wiring guide, servo configuration and system architecture.</div>
+      <span class="card-arrow">↗</span>
+    </div>
+
+    <div class="home-card" onclick="showPage('tracking')">
+      <span class="card-num">02 / 04</span>
+      <span class="card-icon">👁️</span>
+      <div class="card-title">Hand Tracking</div>
+      <div class="card-desc">Real-time MediaPipe gesture recognition — mirror your hand movements live.</div>
+      <span class="card-arrow">↗</span>
+    </div>
+
+    <div class="home-card" onclick="showPage('sign')">
+      <span class="card-num">03 / 04</span>
+      <span class="card-icon">🤟</span>
+      <div class="card-title">Sign Language</div>
+      <div class="card-desc">Type words and the hand performs predefined sign language gestures.</div>
+      <span class="card-arrow">↗</span>
+    </div>
+
+    <div class="home-card" onclick="showPage('keyboard')">
+      <span class="card-num">04 / 04</span>
+      <span class="card-icon">⌨️</span>
+      <div class="card-title">Keyboard Control</div>
+      <div class="card-desc">Direct per-finger control using hotkeys — precise manual motor manipulation.</div>
+      <span class="card-arrow">↗</span>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════
+     ABOUT
+══════════════════════════════ -->
+<section id="about" class="page">
+  <div class="page-inner">
+    <div class="page-header">
+      <span class="page-tag">01 / 04 — Overview</span>
+      <h1 class="page-title">Project Overview</h1>
+    </div>
+
+    <div class="specs-grid">
+      <div class="spec-card">
+        <span class="spec-icon">🔧</span>
+        <div class="spec-label">Actuators</div>
+        <div class="spec-value">5× SG90 Servos</div>
+      </div>
+      <div class="spec-card">
+        <span class="spec-icon">💾</span>
+        <div class="spec-label">Controller</div>
+        <div class="spec-value">ESP32 DevKit</div>
+      </div>
+      <div class="spec-card">
+        <span class="spec-icon">⚡</span>
+        <div class="spec-label">PWM Driver</div>
+        <div class="spec-value">PCA9685 16-Ch</div>
+      </div>
+      <div class="spec-card">
+        <span class="spec-icon">🔋</span>
+        <div class="spec-label">Power Supply</div>
+        <div class="spec-value">5V DC Regulated</div>
+      </div>
+      <div class="spec-card">
+        <span class="spec-icon">📡</span>
+        <div class="spec-label">Protocol</div>
+        <div class="spec-value">Wi-Fi HTTP REST</div>
+      </div>
+      <div class="spec-card">
+        <span class="spec-icon">🧠</span>
+        <div class="spec-label">Vision</div>
+        <div class="spec-value">MediaPipe Hands</div>
+      </div>
+    </div>
+
+    <h2 class="section-title">About the Project</h2>
+    <p class="about-text">
+      The <strong>Bionic Hand</strong> is a 5-degree-of-freedom robotic hand replica controlled wirelessly
+      over Wi-Fi. Each finger is driven by a dedicated <strong>SG90 micro-servo</strong>, managed through
+      a <strong>PCA9685 16-channel PWM breakout board</strong> over I²C, connected to an
+      <strong>ESP32 microcontroller</strong> acting as a Wi-Fi access point or client.
+    </p>
+    <p class="about-text">
+      The ESP32 exposes a lightweight HTTP API — control commands are sent as simple GET requests,
+      making integration with any platform (Python, JavaScript, mobile) trivial. The system supports
+      three control modes: real-time <strong>MediaPipe hand mirroring</strong>, predefined
+      <strong>sign language gestures</strong>, and direct <strong>keyboard hotkey</strong> control.
+    </p>
+
+    <h2 class="section-title">Key Features</h2>
+    <ul class="feature-list">
+      <li>Real-time finger angle mapping using MediaPipe Hands landmark detection (21 points)</li>
+      <li>Configurable motor inversion per channel for physically reversed servo mounting</li>
+      <li>Throttled command dispatch (20 Hz max) with delta-threshold filtering to reduce noise</li>
+      <li>Predefined gesture library for sign language words (hi, yes, help, water, thanks)</li>
+      <li>Full per-motor forward/backward keyboard control with group preset commands</li>
+      <li>All servo angles mapped to 0°–180° with smooth transitions via PCA9685 PWM</li>
+    </ul>
+
+    <h2 class="section-title">Wiring & Pinout</h2>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Component</th><th>ESP32 Pin</th><th>Notes</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>PCA9685 SDA</td><td>GPIO 21</td><td>I²C Data</td></tr>
+          <tr><td>PCA9685 SCL</td><td>GPIO 22</td><td>I²C Clock</td></tr>
+          <tr><td>PCA9685 VCC</td><td>3.3V</td><td>Logic power</td></tr>
+          <tr><td>PCA9685 V+</td><td>External 5V</td><td>Servo power rail</td></tr>
+          <tr><td>Thumb Servo</td><td>PCA ch. 0</td><td>INVERT: No</td></tr>
+          <tr><td>Index Servo</td><td>PCA ch. 1</td><td>INVERT: Yes</td></tr>
+          <tr><td>Middle Servo</td><td>PCA ch. 2</td><td>INVERT: Yes</td></tr>
+          <tr><td>Ring Servo</td><td>PCA ch. 3</td><td>INVERT: Yes</td></tr>
+          <tr><td>Pinky Servo</td><td>PCA ch. 4</td><td>INVERT: Yes</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h2 class="section-title">API Endpoints</h2>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Endpoint</th><th>Description</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>GET /set?m0=90&m1=45…</td><td>Set all motor angles at once</td></tr>
+          <tr><td>GET /m0f · /m0b</td><td>Motor 0 forward / backward step</td></tr>
+          <tr><td>GET /all90</td><td>All motors to neutral (90°)</td></tr>
+          <tr><td>GET /all180</td><td>All motors fully extended</td></tr>
+          <tr><td>GET /idle</td><td>Relax all servos</td></tr>
+          <tr><td>GET /hi · /yes · /help…</td><td>Predefined sign language poses</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════
+     HAND TRACKING
+══════════════════════════════ -->
+<section id="tracking" class="page">
+  <div class="tracking-layout">
+
+    <!-- Camera feed -->
+    <div>
+      <div class="page-header" style="margin-bottom:24px">
+        <span class="page-tag">02 / 04 — Real-time Vision</span>
+        <h1 class="page-title">Hand Tracking</h1>
+      </div>
+      <div class="cam-panel">
+        <div class="cam-header">
+          <div class="cam-dot" id="camDot"></div>
+          <span class="cam-label" id="camLabel">CAMERA OFFLINE</span>
+        </div>
+        <video id="inputVideo" playsinline></video>
+        <canvas id="videoCanvas"></canvas>
+        <div class="cam-status">
+          <span class="status-hand" id="handStatus">No hand detected</span>
+          <span class="status-fps" id="fpsDisplay">— FPS</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Side panel -->
+    <div class="side-panel">
+
+      <!-- ESP config -->
+      <div class="panel-card">
+        <div class="panel-card-title">ESP32 Target</div>
+        <div class="input-row">
+          <input class="esp-input" id="trackEspIp" value="192.168.1.120" placeholder="ESP32 IP">
+        </div>
+        <button class="btn primary" id="startTrackBtn" onclick="startTracking()">▶ Start Camera</button>
+        <button class="btn danger" id="stopTrackBtn" onclick="stopTracking()" style="width:100%;margin-top:8px;display:none">■ Stop</button>
+        <div class="conn-indicator">
+          <div class="conn-dot" id="trackConnDot"></div>
+          <span id="trackConnLabel">Not started</span>
+        </div>
+      </div>
+
+      <!-- Finger angles -->
+      <div class="panel-card">
+        <div class="panel-card-title">Finger Angles</div>
+        <div class="finger-bars" id="fingerBars">
+          <!-- Generated by JS -->
+        </div>
+      </div>
+
+      <!-- Settings -->
+      <div class="panel-card">
+        <div class="panel-card-title">Settings</div>
+        <div style="display:flex;flex-direction:column;gap:10px;font-size:0.85rem;color:var(--text-muted)">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+            <input type="checkbox" id="sendEnabled" checked style="accent-color:var(--purple-400)">
+            Send to ESP32
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+            <input type="checkbox" id="mirrorMode" checked style="accent-color:var(--purple-400)">
+            Mirror camera
+          </label>
+          <div>
+            <div style="margin-bottom:6px">Threshold: <span id="threshVal">3</span>°</div>
+            <input type="range" min="1" max="15" value="3" id="threshSlider" style="width:100%;accent-color:var(--purple-400)" oninput="document.getElementById('threshVal').textContent=this.value">
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /side-panel -->
+  </div>
+</section>
+
+<!-- ══════════════════════════════
+     SIGN LANGUAGE
+══════════════════════════════ -->
+<section id="sign" class="page">
+  <div class="sign-layout">
+    <div class="page-header">
+      <span class="page-tag">03 / 04 — Text to Gesture</span>
+      <h1 class="page-title">Sign Language</h1>
+    </div>
+
+    <div class="sign-esp-row">
+      <input class="esp-input" id="signEspIp" value="192.168.1.120" placeholder="ESP32 IP" style="max-width:240px">
+      <div class="conn-indicator">
+        <div class="conn-dot" id="signConnDot"></div>
+        <span id="signConnLabel">Ready</span>
+      </div>
+    </div>
+
+    <h2 class="section-title">Quick Words</h2>
+    <div class="word-chips" id="wordChips"></div>
+
+    <div class="sign-input-area">
+      <label>Enter sentence (space-separated words)</label>
+      <textarea class="sign-textarea" id="signTextarea" placeholder="hi yes help water thanks…" rows="3"></textarea>
+      <div class="sign-send-row">
+        <button class="btn primary" onclick="sendSignText()" style="flex:1">Send Sentence</button>
+        <button class="btn" onclick="document.getElementById('signLog').innerHTML=''" style="padding:9px 14px">Clear Log</button>
+      </div>
+    </div>
+
+    <div class="progress-queue" id="progressQueue">
+      <div class="queue-label">Processing Queue</div>
+      <div class="queue-items" id="queueItems"></div>
+    </div>
+
+    <h2 class="section-title">Activity Log</h2>
+    <div class="log-box" id="signLog">
+      <div class="log-entry">System ready. Awaiting input…</div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════
+     KEYBOARD CONTROL
+══════════════════════════════ -->
+<section id="keyboard" class="page">
+  <div class="kb-layout">
+    <div class="page-header">
+      <span class="page-tag">04 / 04 — Manual Control</span>
+      <h1 class="page-title">Keyboard Control</h1>
+    </div>
+
+    <div class="kb-esp-row">
+      <input class="esp-input" id="kbEspIp" value="192.168.1.120" placeholder="ESP32 IP" style="max-width:240px">
+      <div class="conn-indicator">
+        <div class="conn-dot" id="kbConnDot"></div>
+        <span id="kbConnLabel">Ready — click here then press keys</span>
+      </div>
+    </div>
+
+    <div class="kb-hint">
+      <strong>Click anywhere on this page</strong> to enable keyboard capture, then use the keys below
+      to control each motor. Keys are registered globally while this page is active.
+    </div>
+
+    <h2 class="section-title">Motor Controls</h2>
+    <div class="motor-grid" id="motorGrid"></div>
+
+    <h2 class="section-title">Presets</h2>
+    <div class="kb-presets">
+      <button class="preset-btn" onclick="kbSend('all90')">⟳ Neutral (1)</button>
+      <button class="preset-btn" onclick="kbSend('all180')">↑ Full Open (2)</button>
+      <button class="preset-btn" onclick="kbSend('idle')">○ Idle (0)</button>
+    </div>
+
+    <h2 class="section-title">Activity Log</h2>
+    <div class="log-box" id="kbLog">
+      <div class="log-entry">Keyboard controller ready.</div>
+    </div>
+  </div>
+</section>
+
+<script>
+/* ─────────────────────────────────────────────
+   PAGE ROUTING
+───────────────────────────────────────────── */
+function showPage(id) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  const navBtns = document.querySelectorAll('.nav-btn');
+  const pages = ['home','about','tracking','sign','keyboard'];
+  const idx = pages.indexOf(id);
+  if (idx >= 0) navBtns[idx].classList.add('active');
+
+  if (id === 'tracking') initFingerBars();
+  if (id === 'keyboard') initMotorGrid();
+}
+
+/* ─────────────────────────────────────────────
+   SHARED FETCH UTILITY
+───────────────────────────────────────────── */
+async function espGet(ip, cmd) {
+  try {
+    await fetch(`http://${ip}/${cmd}`, { mode: 'no-cors', signal: AbortSignal.timeout(500) });
+    return true;
+  } catch(e) {
+    return false;
+  }
+}
+
+/* ─────────────────────────────────────────────
+   HAND TRACKING  (fixed: Camera utility + onResults draws)
+───────────────────────────────────────────── */
+const FINGER_NAMES = ['Thumb','Index','Middle','Ring','Pinky'];
+let mpHands     = null;
+let mpCamera    = null;   // MediaPipe Camera utility
+let trackActive = false;
+let lastAngles  = [90,90,90,90,90];
+let lastSendTime = 0;
+let frameCount  = 0;
+let fpsTime     = performance.now();
+let canvasCtx   = null;
+
+function initFingerBars() {
+  const bars = document.getElementById('fingerBars');
+  if (bars.children.length > 0) return;
+  bars.innerHTML = FINGER_NAMES.map((n,i) => `
+    <div class="finger-row">
+      <span class="finger-name">${n}</span>
+      <div class="bar-track"><div class="bar-fill" id="bar${i}"></div></div>
+      <span class="finger-angle" id="ang${i}">90°</span>
+    </div>
+  `).join('');
+}
+
+function updateFingerUI(vals, angles) {
+  vals.forEach((v,i) => {
+    const bar = document.getElementById('bar'+i);
+    const ang = document.getElementById('ang'+i);
+    if (bar) bar.style.width = (v*100)+'%';
+    if (ang) ang.textContent = angles[i]+'°';
+  });
+}
+
+async function startTracking() {
+  initFingerBars();
+  document.getElementById('startTrackBtn').style.display  = 'none';
+  document.getElementById('stopTrackBtn').style.display   = 'block';
+  document.getElementById('camLabel').textContent         = 'INITIALIZING…';
+  document.getElementById('trackConnLabel').textContent   = 'Starting…';
+
+  const video  = document.getElementById('inputVideo');
+  const canvas = document.getElementById('videoCanvas');
+  canvasCtx    = canvas.getContext('2d');
+
+  /* ── 1. Init MediaPipe Hands ── */
+  if (typeof Hands === 'undefined') {
+    document.getElementById('camLabel').textContent = 'ERROR: MediaPipe not loaded';
+    document.getElementById('startTrackBtn').style.display = 'block';
+    document.getElementById('stopTrackBtn').style.display  = 'none';
+    return;
+  }
+
+  mpHands = new Hands({
+    locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}`
+  });
+  mpHands.setOptions({
+    maxNumHands: 1,
+    minDetectionConfidence: 0.7,
+    minTrackingConfidence:  0.6,
+    modelComplexity: 1
+  });
+
+  /* ── 2. onResults: draw frame + landmarks, then process ── */
+  mpHands.onResults(results => {
+    const w      = canvas.width, h = canvas.height;
+    const mirror = document.getElementById('mirrorMode').checked;
+
+    /* Draw video frame — mirrored if needed */
+    canvasCtx.save();
+    canvasCtx.clearRect(0, 0, w, h);
+    if (mirror) { canvasCtx.translate(w, 0); canvasCtx.scale(-1, 1); }
+    canvasCtx.drawImage(results.image, 0, 0, w, h);
+    canvasCtx.restore();
+
+    /* FPS counter */
+    frameCount++;
+    if (performance.now() - fpsTime > 1000) {
+      document.getElementById('fpsDisplay').textContent = frameCount + ' FPS';
+      frameCount = 0; fpsTime = performance.now();
+    }
+
+    const status = document.getElementById('handStatus');
+    if (!results.multiHandLandmarks || results.multiHandLandmarks.length === 0) {
+      status.textContent = 'No hand detected';
+      return;
+    }
+    status.textContent = '✋ Hand detected';
+
+    for (const landmarks of results.multiHandLandmarks) {
+
+      /* KEY FIX: MediaPipe always returns coords in original (unflipped) space.
+         When mirror mode is ON, flip landmark X for drawing only — so the
+         skeleton overlays correctly on the flipped video.
+         Use the ORIGINAL landmarks for angle math (physics doesn't change). */
+      const drawLms = mirror
+        ? landmarks.map(lm => ({ ...lm, x: 1 - lm.x }))
+        : landmarks;
+
+      if (typeof drawConnectors !== 'undefined') {
+        drawConnectors(canvasCtx, drawLms, HAND_CONNECTIONS,
+          { color: '#f97316', lineWidth: 2 });
+        drawLandmarks(canvasCtx, drawLms,
+          { color: '#ea580c', fillColor: '#fff7ed', lineWidth: 1, radius: 4 });
+      }
+
+      /* Angle math always uses original (unflipped) landmarks */
+      const vals   = getFingerAnalogs(landmarks);
+      const angles = analogsToAngles(vals);
+      updateFingerUI(vals, angles);
+      trySend(angles);
+    }
+  });
+
+  /* ── 3. Use Camera utility — it owns the rAF loop ── */
+  if (typeof Camera === 'undefined') {
+    document.getElementById('camLabel').textContent = 'ERROR: Camera utils not loaded';
+    document.getElementById('startTrackBtn').style.display = 'block';
+    document.getElementById('stopTrackBtn').style.display  = 'none';
+    return;
+  }
+
+  mpCamera = new Camera(video, {
+    onFrame: async () => {
+      /* Set canvas size to match video on first frame */
+      if (canvas.width !== video.videoWidth && video.videoWidth > 0) {
+        canvas.width  = video.videoWidth;
+        canvas.height = video.videoHeight;
+      }
+      /* Send the VIDEO element — not canvas — to MediaPipe */
+      await mpHands.send({ image: video });
+    },
+    width: 640,
+    height: 480
+  });
+
+  try {
+    await mpCamera.start();
+  } catch(e) {
+    document.getElementById('camLabel').textContent       = 'CAMERA ERROR';
+    document.getElementById('trackConnLabel').textContent = 'Camera access denied: ' + e.message;
+    document.getElementById('startTrackBtn').style.display = 'block';
+    document.getElementById('stopTrackBtn').style.display  = 'none';
+    return;
+  }
+
+  trackActive = true;
+  document.getElementById('camDot').style.background          = 'var(--purple-400)';
+  document.getElementById('camLabel').textContent             = 'LIVE';
+  document.getElementById('trackConnLabel').textContent       = 'Camera active';
+  document.getElementById('trackConnDot').classList.add('connected');
+}
+
+function stopTracking() {
+  trackActive = false;
+  if (mpCamera) { mpCamera.stop(); mpCamera = null; }
+  if (mpHands)  { mpHands.close(); mpHands  = null; }
+  document.getElementById('startTrackBtn').style.display = 'block';
+  document.getElementById('stopTrackBtn').style.display  = 'none';
+  document.getElementById('camLabel').textContent             = 'CAMERA OFFLINE';
+  document.getElementById('camDot').style.background         = '';
+  document.getElementById('trackConnDot').classList.remove('connected');
+  document.getElementById('trackConnLabel').textContent       = 'Stopped';
+  document.getElementById('handStatus').textContent           = 'No hand detected';
+  document.getElementById('fpsDisplay').textContent           = '— FPS';
+  /* Clear canvas */
+  const canvas = document.getElementById('videoCanvas');
+  if (canvasCtx) canvasCtx.clearRect(0, 0, canvas.width, canvas.height);
+}
+
+function getFingerAnalogs(lm) {
+  const vals = [];
+  /* Thumb — X-axis spread */
+  const thumbSpread = lm[4].x - lm[2].x;
+  vals.push(Math.min(1, Math.max(0, (0.1 - thumbSpread) / 0.2)));
+  /* Index → Pinky — Y-axis tip vs base */
+  [[8,5],[12,9],[16,13],[20,17]].forEach(([tip, base]) => {
+    const diff = lm[base].y - lm[tip].y;
+    vals.push(Math.min(1, Math.max(0, diff / 0.30)));
+  });
+  return vals;
+}
+
+function analogsToAngles(vals) {
+  const INVERT = [false, true, true, true, true];
+  return vals.map((v, i) => {
+    const a = Math.round(v * 180);
+    return INVERT[i] ? 180 - a : a;
+  });
+}
+
+async function trySend(angles) {
+  if (!document.getElementById('sendEnabled').checked) return;
+  const now = performance.now();
+  if (now - lastSendTime < 50) return;
+  const thresh = parseInt(document.getElementById('threshSlider').value);
+  if (angles.every((a, i) => Math.abs(a - lastAngles[i]) < thresh)) return;
+  lastAngles   = [...angles];
+  lastSendTime = now;
+  const ip    = document.getElementById('trackEspIp').value.trim();
+  const query = angles.map((a, i) => `m${i}=${a}`).join('&');
+  espGet(ip, `set?${query}`);   // fire-and-forget, no await needed here
+}
+
+/* ─────────────────────────────────────────────
+   SIGN LANGUAGE
+───────────────────────────────────────────── */
+const SIGN_DICT = { hi:'hi', yes:'yes', help:'help', water:'water', thanks:'thanks' };
+
+function initWordChips() {
+  const chips = document.getElementById('wordChips');
+  if (chips.children.length > 0) return;
+  Object.keys(SIGN_DICT).forEach(word => {
+    const ch = document.createElement('div');
+    ch.className = 'word-chip';
+    ch.textContent = word;
+    ch.onclick = () => sendSignWord(word);
+    chips.appendChild(ch);
+  });
+}
+initWordChips();
+
+function signLog(msg, cls='') {
+  const box = document.getElementById('signLog');
+  const d = document.createElement('div');
+  d.className = 'log-entry '+cls;
+  d.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+  box.appendChild(d);
+  box.scrollTop = box.scrollHeight;
+}
+
+async function sendSignWord(word) {
+  const ip = document.getElementById('signEspIp').value.trim();
+  const cmd = SIGN_DICT[word];
+  if (!cmd) { signLog('Not found: '+word, 'err'); return; }
+  signLog('Sending: '+word, 'sent');
+  document.getElementById('signConnDot').className='conn-dot';
+  const ok = await espGet(ip, cmd);
+  document.getElementById('signConnDot').className = 'conn-dot '+(ok?'connected':'error');
+  signLog(ok ? '✓ Sent: '+cmd : '✗ Connection error', ok?'ok':'err');
+}
+
+async function sendSignText() {
+  const text = document.getElementById('signTextarea').value.trim();
+  if (!text) return;
+  const words = text.toLowerCase().split(/\s+/);
+  const known = words.filter(w => SIGN_DICT[w]);
+  const unknown = words.filter(w => !SIGN_DICT[w]);
+  if (unknown.length) signLog('Unknown: '+unknown.join(', '), 'err');
+  if (!known.length) return;
+
+  // Show queue
+  const qBox = document.getElementById('progressQueue');
+  const qItems = document.getElementById('queueItems');
+  qBox.style.display = 'block';
+  qItems.innerHTML = known.map((w,i) => `<div class="queue-item" id="qi${i}">${w}</div>`).join('');
+
+  for (let i=0; i<known.length; i++) {
+    document.getElementById('qi'+i).className = 'queue-item active';
+    await sendSignWord(known[i]);
+    document.getElementById('qi'+i).className = 'queue-item done';
+    if (i < known.length-1) await sleep(1000);
+  }
+  setTimeout(() => { qBox.style.display = 'none'; }, 1500);
+}
+
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+/* ─────────────────────────────────────────────
+   KEYBOARD CONTROL
+───────────────────────────────────────────── */
+const MOTOR_DEFS = [
+  { name:'Thumb',  fwd:'q', bwd:'a' },
+  { name:'Index',  fwd:'w', bwd:'s' },
+  { name:'Middle', fwd:'e', bwd:'d' },
+  { name:'Ring',   fwd:'r', bwd:'f' },
+  { name:'Pinky',  fwd:'t', bwd:'g' },
+];
+const KB_MAP = {};
+MOTOR_DEFS.forEach((m,i) => {
+  KB_MAP[m.fwd] = { cmd:`m${i}f`, motor:i, dir:'fwd' };
+  KB_MAP[m.bwd] = { cmd:`m${i}b`, motor:i, dir:'bwd' };
+});
+KB_MAP['1'] = { cmd:'all90',   motor:-1 };
+KB_MAP['2'] = { cmd:'all180',  motor:-1 };
+KB_MAP['0'] = { cmd:'idle',    motor:-1 };
+
+let kbActive = false;
+
+function initMotorGrid() {
+  const grid = document.getElementById('motorGrid');
+  if (grid.children.length > 0) return;
+  MOTOR_DEFS.forEach((m,i) => {
+    grid.innerHTML += `
+      <div class="motor-card" id="mc${i}">
+        <div class="motor-name">${m.name}</div>
+        <div class="motor-keys">
+          <div class="key-row">
+            <span class="key-badge" id="kb_${m.fwd}">${m.fwd.toUpperCase()}</span>
+            <span class="key-dir">Fwd</span>
+          </div>
+          <div class="key-row">
+            <span class="key-badge" id="kb_${m.bwd}">${m.bwd.toUpperCase()}</span>
+            <span class="key-dir">Back</span>
+          </div>
+        </div>
+      </div>
+    `;
+  });
+}
+
+function kbLog(msg, cls='') {
+  const box = document.getElementById('kbLog');
+  const d = document.createElement('div');
+  d.className = 'log-entry '+cls;
+  d.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+  box.appendChild(d);
+  if (box.children.length > 60) box.removeChild(box.firstChild);
+  box.scrollTop = box.scrollHeight;
+}
+
+async function kbSend(cmd) {
+  const ip = document.getElementById('kbEspIp').value.trim();
+  const ok = await espGet(ip, cmd);
+  kbLog((ok?'✓':'✗')+' '+cmd, ok?'ok':'err');
+  document.getElementById('kbConnDot').className = 'conn-dot '+(ok?'connected':'error');
+}
+
+document.addEventListener('keydown', async e => {
+  if (document.getElementById('keyboard').classList.contains('active')) {
+    const key = e.key.toLowerCase();
+    if (KB_MAP[key]) {
+      e.preventDefault();
+      const m = KB_MAP[key];
+      // Visual
+      const badge = document.getElementById('kb_'+key);
+      if (badge) { badge.classList.add('pressed'); setTimeout(()=>badge.classList.remove('pressed'),200); }
+      if (m.motor >= 0) {
+        const card = document.getElementById('mc'+m.motor);
+        if (card) { card.classList.add('active'); setTimeout(()=>card.classList.remove('active'),200); }
+      }
+      await kbSend(m.cmd);
+    }
+  }
+});
+
+// Init motor grid on load too
+window.addEventListener('load', () => {
+  initFingerBars();
+  initMotorGrid();
+});
+</script>
+</body>
+</html>
