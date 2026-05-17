@@ -200,6 +200,80 @@
   }
   .home-card:hover .card-arrow { transform: translate(4px, -4px); color: var(--orange-500); }
 
+  /* ══════════════════ TEAM SECTION ══════════════════ */
+  .team-section { margin-bottom: 56px; }
+
+  .team-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 20px;
+  }
+  @media(max-width:820px) { .team-grid { grid-template-columns: repeat(2,1fr); } }
+  @media(max-width:480px) { .team-grid { grid-template-columns: 1fr 1fr; } }
+
+  .team-card {
+    background: var(--bg-card); border: 1px solid var(--border-soft);
+    border-radius: 18px; padding: 28px 20px 22px;
+    text-align: center; box-shadow: var(--shadow);
+    transition: transform 0.25s, border-color 0.25s, box-shadow 0.25s;
+    position: relative; overflow: hidden;
+  }
+  .team-card::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px;
+    background: linear-gradient(90deg, var(--orange-400), var(--orange-600, #ea580c));
+  }
+  .team-card:hover { transform: translateY(-5px); border-color: var(--border); box-shadow: var(--glow); }
+
+  .team-avatar-wrap {
+    width: 88px; height: 88px; border-radius: 50%;
+    margin: 0 auto 16px;
+    border: 3px solid var(--orange-200);
+    box-shadow: 0 0 0 3px var(--orange-100);
+    overflow: hidden; position: relative;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  .team-card:hover .team-avatar-wrap {
+    border-color: var(--orange-400);
+    box-shadow: 0 0 0 3px var(--orange-100), var(--glow);
+  }
+  .team-avatar-wrap img {
+    width: 100%; height: 100%; object-fit: cover; display: block;
+  }
+  /* Initials fallback (shown when img fails) */
+  .team-avatar-fallback {
+    width: 100%; height: 100%;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Orbitron', monospace; font-size: 1.3rem; font-weight: 700;
+    color: #fff;
+    background: linear-gradient(135deg, var(--orange-700), var(--orange-400));
+  }
+
+  .team-name {
+    font-family: 'Orbitron', monospace; font-weight: 700;
+    font-size: 0.72rem; letter-spacing: 0.06em;
+    color: var(--text-main); margin-bottom: 4px; line-height: 1.4;
+  }
+  .team-role {
+    font-size: 0.8rem; color: var(--text-muted); margin-bottom: 14px;
+  }
+  .linkedin-btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-family: 'Orbitron', monospace; font-size: 0.58rem;
+    letter-spacing: 0.1em; text-transform: uppercase;
+    padding: 7px 14px; border-radius: 20px; cursor: pointer;
+    border: 1px solid var(--blue-400);
+    background: var(--blue-200); color: var(--blue-600);
+    text-decoration: none; transition: all 0.2s;
+  }
+  .linkedin-btn:hover {
+    background: var(--blue-500); color: #fff; border-color: var(--blue-500);
+    box-shadow: 0 4px 14px rgba(59,130,246,0.35);
+  }
+  .linkedin-icon {
+    width: 13px; height: 13px; flex-shrink: 0;
+    fill: currentColor;
+  }
+
   /* ══════════════════ ABOUT PAGE ══════════════════ */
   .page-inner { max-width: 960px; margin: 0 auto; padding: 48px 24px; }
 
@@ -557,6 +631,94 @@
       <span class="page-tag">01 / 04 — Overview</span>
       <h1 class="page-title">Project Overview</h1>
     </div>
+
+    <!-- ── TEAM ── -->
+    <div class="team-section">
+      <h2 class="section-title">Meet the Team</h2>
+      <div class="team-grid">
+
+        <!-- Anthony Ayman Raafat -->
+        <div class="team-card">
+          <div class="team-avatar-wrap">
+            <img
+              src="./assets/anthony.jpeg"
+              alt="Anthony Ayman Raafat"
+              onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"
+            />
+            <div class="team-avatar-fallback" style="display:none">AA</div>
+          </div>
+          <div class="team-name">Anthony Ayman Raafat</div>
+          <div class="team-role">Team Member</div>
+          <a class="linkedin-btn" href="https://www.linkedin.com/in/anthony-ayman/?skipRedirect=true" target="_blank" rel="noopener">
+            <svg class="linkedin-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
+            </svg>
+            LinkedIn
+          </a>
+        </div>
+
+        <!-- Mark Nady -->
+        <div class="team-card">
+          <div class="team-avatar-wrap">
+            <img
+              src="./assets/mark.jpeg"
+              alt="Mark Nady"
+              onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"
+            />
+            <div class="team-avatar-fallback" style="display:none">MN</div>
+          </div>
+          <div class="team-name">Mark Nady</div>
+          <div class="team-role">Team Member</div>
+          <a class="linkedin-btn" href="https://linkedin.com" target="_blank" rel="noopener">
+            <svg class="linkedin-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
+            </svg>
+            LinkedIn
+          </a>
+        </div>
+
+        <!-- Mikhael Khalaf -->
+        <div class="team-card">
+          <div class="team-avatar-wrap">
+            <img
+              src="./assets/mikhael.jpeg"
+              alt="Mikhael Khalaf"
+              onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"
+            />
+            <div class="team-avatar-fallback" style="display:none">MK</div>
+          </div>
+          <div class="team-name">Mikhael Khalaf</div>
+          <div class="team-role">Team Member</div>
+          <a class="linkedin-btn" href="https://www.linkedin.com/in/mkh-moneer-882423407?utm_source=share_via&utm_content=profile&utm_medium=member_android" target="_blank" rel="noopener">
+            <svg class="linkedin-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
+            </svg>
+            LinkedIn
+          </a>
+        </div>
+
+        <!-- Nora Khairy -->
+        <div class="team-card">
+          <div class="team-avatar-wrap">
+            <img
+              src="./assets/nora.jpeg"
+              alt="Nora Khairy"
+              onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"
+            />
+            <div class="team-avatar-fallback" style="display:none">NK</div>
+          </div>
+          <div class="team-name">Nora Khairy</div>
+          <div class="team-role">Team Member</div>
+          <a class="linkedin-btn" href="https://linkedin.com" target="_blank" rel="noopener">
+            <svg class="linkedin-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
+            </svg>
+            LinkedIn
+          </a>
+        </div>
+
+      </div><!-- /team-grid -->
+    </div><!-- /team-section -->
 
     <div class="specs-grid">
       <div class="spec-card">
