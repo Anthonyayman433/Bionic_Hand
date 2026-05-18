@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Bionic Hand Control</title>
+<title>Bionic prosthetic Hand</title>
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=Rajdhani:wght@300;400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
@@ -577,14 +577,21 @@
      HOME
 ══════════════════════════════ -->
 <section id="home" class="page active">
-  <span class="hero-badge">ESP32 · PCA9685 · SG90 · MediaPipe</span>
+  <span class="hero-badge" style="font-size:0.85rem;padding:10px 28px;letter-spacing:0.18em">Mechatronics and Robotics Engineering Program 
+    Faculty of Engineering 
+    Assiut University</span>
   <h1 class="hero-title">
     <span class="line1">BIONIC</span>
-    <span class="line2">HAND CONTROL</span>
+    <span class="line2">PROSTHETIC HAND</span>
   </h1>
   <p class="hero-sub">
-    A 5-axis robotic hand powered by SG90 servos, driven by an ESP32 microcontroller
-    and PCA9685 PWM driver — controlled via gesture, sign language, or keyboard.
+    Made by engineers studying in 
+     
+    Mechatronics and Robotics Engineering Program 
+    Faculty of Engineering 
+    Assiut University
+
+    2025-2026
   </p>
 
   <div class="cards-grid">
@@ -631,6 +638,39 @@
       <span class="page-tag">01 / 04 — Overview</span>
       <h1 class="page-title">Project Overview</h1>
     </div>
+
+    <!-- ── SUPERVISOR ── -->
+    <div class="team-section" style="margin-bottom:36px">
+      <h2 class="section-title">Project Supervisor</h2>
+      <div style="display:flex;align-items:center;gap:28px;background:var(--bg-card);border:1px solid var(--border);border-radius:18px;padding:28px 32px;box-shadow:var(--glow);max-width:480px;position:relative;overflow:hidden">
+        <!-- orange accent bar -->
+        <div style="position:absolute;top:0;left:0;right:0;height:4px;background:linear-gradient(90deg,var(--orange-700),var(--orange-300))"></div>
+        <!-- avatar -->
+        <div style="width:90px;height:90px;border-radius:50%;flex-shrink:0;border:3px solid var(--orange-300);box-shadow:0 0 0 3px var(--orange-100),var(--glow);overflow:hidden">
+          <img
+            src="./assets/shuaiby.jpg"
+            alt="Dr. Shuaiby Mohamed"
+            style="width:100%;height:100%;object-fit:cover;display:block"
+            onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"
+          />
+          <div style="display:none;width:100%;height:100%;align-items:center;justify-content:center;font-family:'Orbitron',monospace;font-size:1.4rem;font-weight:700;color:#fff;background:linear-gradient(135deg,var(--orange-900),var(--orange-700))">SM</div>
+        </div>
+        <!-- info -->
+        <div>
+          <div style="font-family:'Orbitron',monospace;font-size:0.62rem;letter-spacing:0.25em;color:var(--orange-500);text-transform:uppercase;margin-bottom:6px">Supervisor</div>
+          <div style="font-family:'Orbitron',monospace;font-weight:700;font-size:0.95rem;color:var(--text-main);margin-bottom:6px">Dr. Shuaiby Mohamed</div>
+          <div style="font-size:0.88rem;color:var(--text-muted);margin-bottom:14px">Assiut University · Engineering Faculty<br>Mechatronics &amp; Robotics</div>
+          <a class="linkedin-btn" href="https://b.aun.edu.eg/engineering/shuaiby-mohamed-shuaiby-ragab" target="_blank" rel="noopener" style="display:inline-flex">
+            <svg class="linkedin-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
+            </svg>
+            LinkedIn
+          </a>
+        </div>
+      </div>
+      
+    </div>
+    
 
     <!-- ── TEAM ── -->
     <div class="team-section">
@@ -709,7 +749,7 @@
           </div>
           <div class="team-name">Nora Khairy</div>
           <div class="team-role">Team Member</div>
-          <a class="linkedin-btn" href="https://www.linkedin.com/in/nora-khairy/?isSelfProfile=false" target="_blank" rel="noopener">
+          <a class="linkedin-btn" href="https://www.linkedin.com/in/nora-khairy/" target="_blank" rel="noopener">
             <svg class="linkedin-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
               <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
             </svg>
